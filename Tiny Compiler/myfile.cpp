@@ -270,7 +270,7 @@ int Evaluate(TreeNode* node, SymbolTable* symbol_table, int* variables)
     if(node->oper==TIMES) return a*b;            // Multiplication
     if(node->oper==DIVIDE) return a/b;           // Integer division
     if(node->oper==POWER) return Power(a,b);     // Exponentiation: a^b
-    if(node->oper==AND) return (a*a)-(b*b);      // My & operator: computes a² - b²
+    if(node->oper==AND) return (a*a)-(b*b);      // My & operator: computes a*a - b*b
 
     // Error: unknown operator
     throw 0;
