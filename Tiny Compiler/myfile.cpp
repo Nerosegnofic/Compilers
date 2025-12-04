@@ -188,63 +188,6 @@ const Token symbolic_tokens[]=
 // factor -> newexpr { ^ newexpr }       right associative
 // newexpr -> ( mathexpr ) | number | identifier
 
-
-// Forward declaration for recursive grammar rules
-TreeNode* MathExpr(CompilerInfo*, ParseInfo*);
-
-// newexpr -> ( mathexpr ) | number | identifier
-// Parses the lowest-level expressions: literals, identifiers, or parenthesized expressions
-TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
-{
-    pci->debug_file.Out("Start NewExpr");
-
-    // Case 1: Number literal (e.g., 42, 123)
-    if(ppi->next_token.type==NUM)
-    {
-        TreeNode* tree=new TreeNode;
-        tree->node_kind=NUM_NODE;
-
-        // Convert string to integer
-        char* num_str=ppi->next_token.str;
-        tree->num=0;
-        while(*num_str) tree->num=tree->num*10+((*num_str++)-'0');
-
-        tree->line_num=pci->in_file.cur_line_num;
-        Match(pci, ppi, ppi->next_token.type);
-
-        pci->debug_file.Out("End NewExpr");
-        return tree;
-    }
-
-    // Case 2: Identifier (variable name)
-    if(ppi->next_token.type==ID)
-    {
-        TreeNode* tree=new TreeNode;
-        tree->node_kind=ID_NODE;
-        AllocateAndCopy(&tree->id, ppi->next_token.str);
-        tree->line_num=pci->in_file.cur_line_num;
-        Match(pci, ppi, ppi->next_token.type);
-
-        pci->debug_file.Out("End NewExpr");
-        return tree;
-    }
-
-    // Case 3: Parenthesized expression (e.g., (x + 5))
-    if(ppi->next_token.type==LEFT_PAREN)
-    {
-        Match(pci, ppi, LEFT_PAREN);
-        TreeNode* tree=MathExpr(pci, ppi);  // Recursively parse inner expression
-        Match(pci, ppi, RIGHT_PAREN);
-
-        pci->debug_file.Out("End NewExpr");
-        return tree;
-    }
-
-    // Syntax error: expected number, identifier, or left parenthesis
-    throw 0;
-    return 0;
-}
-
 // factor -> newexpr { ^ newexpr }    right associative
 // Handles exponentiation operator (^) with RIGHT associativity
 // Example: 2^3^2 is parsed as 2^(3^2) = 512
