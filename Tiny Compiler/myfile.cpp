@@ -256,8 +256,7 @@ int Evaluate(TreeNode* node, SymbolTable* symbol_table, int* variables)
     if(node->node_kind==NUM_NODE) return node->num;
 
     // Base case 2: Variable (look up in symbol table and get value)
-    if(node->node_kind==ID_NODE)
-        return variables[symbol_table->Find(node->id)->memloc];
+    if(node->node_kind==ID_NODE) return variables[symbol_table->Find(node->id)->memloc];
 
     // Recursive case: Evaluate both children
     int a=Evaluate(node->child[0], symbol_table, variables);
