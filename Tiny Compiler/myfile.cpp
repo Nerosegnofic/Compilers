@@ -6,6 +6,119 @@
 //  • Yusuf Naser Muhammad Kamal           (20220416)
 // ===================================================
 
+/*
+  =======================
+      TINY TEST SUITE
+     for operator a & b
+  =======================
+
+  Semantics:  a & b = (a^2) - (b^2)
+  Given input: a = 5, b = 3
+  All other variables initially = 0
+
+  TINY TEST PROGRAM WITH RESULTS:
+
+  read a;     { a = 5 }
+  read b;     { b = 3 }
+
+  {1}  c := a & b;                   { 5² - 3² = 25 - 9 = 16 }
+                                     { c = 16 }
+
+  {2}  d := a & b & c;               { (a & b) = 16 }
+                                     { 16 & 16 = 256 - 256 = 0 }
+                                     { d = 0 }
+
+  {3}  e := a & (b + c);             { b + c = 3 + 16 = 19 }
+                                     { 5 & 19 = 25 - 361 = -336 }
+                                     { e = -336 }
+
+  {4}  f := (a + b) & (c - b);       { a + b = 8, c - b = 16 - 3 = 13 }
+                                     { 8 & 13 = 64 - 169 = -105 }
+                                     { f = -105 }
+
+  {5}  g := a & b + c;               { a & b = 16, then + c = 16 + 16 = 32 }
+                                     { g = 32 }
+
+  {6}  h := a + b & c;               { b & c = 3² - 16² = 9 - 256 = -247 }
+                                     { a + (b & c) = 5 + (-247) = -242 }
+                                     { h = -242 }
+
+  {7}  x := a * b & c;               { a*b = 15 }
+                                     { 15 & 16 = 225 - 256 = -31 }
+                                     { x = -31 }
+
+  {8}  y := a & b * c;               { b*c = 3*16 = 48 }
+                                     { 5 & 48 = 25 - 2304 = -2279 }
+                                     { y = -2279 }
+
+  {9}  z := a ^ b & c;               { a^b = 5^3 = 125 }
+                                     { 125 & 16 = 15625 - 256 = 15369 }
+                                     { z = 15369 }
+
+  {10} t := a & b ^ c;               { b^c = 3^2 = 9 }
+                                     { 5 & 9 = 25 - 81 = -56 }
+                                     { t = -56 }
+
+  {11} a := a & a;                   { 5 & 5 = 25 - 25 = 0 }
+                                     { a = 0 }
+
+  {12} b := (a & b) & (c & d);       { a & b = 0² - 3² = -9 }
+                                     { c & d = 16² - 0² = 256 }
+                                     { -9 & 256 = 81 - 65536 = -65455 }
+                                     { b = -65455 }
+
+  {13} c := a - b & c + d;           { b & c = (-65455)² - 16² = very large positive }
+                                     { c = 0 - (very large) + 0 = very large negative }
+                                     { c ≈ -4.284386769e9 }
+
+  {14} d := a / b & c * d;           { a/b = 0, c*d = 0 }
+                                     { 0 & 0 = 0 }
+                                     { d = 0 }
+
+  {15} if a & b < c then x := 1 else x := 2 end;
+                                     { a & b = 0² - (-65455)² = -4.284386025e9 }
+                                     { -4.28e9 < -4.28e9 (slightly smaller) → TRUE }
+                                     { x = 1 }
+
+  {16} if a < b & c then y := 3 else y := 4 end;
+                                     { b & c = huge positive - huge positive = huge negative }
+                                     { 0 < huge_negative → FALSE }
+                                     { y = 4 }
+
+  {17} repeat z := z & a until z < 0;
+                                     { a = 0 }
+                                     { z & 0 = z², always positive }
+                                     { LOOP NEVER ENDS (infinite loop) }
+
+  {18} f := (a & b) * (c & d);        { a & b = -4.284386025e9 }
+                                     { c & d = (very large) }
+                                     { result = very large negative }
+                                     { f = very large negative }
+
+  {19} g := (a + b) & (c * d);       { a + b = -65455 }
+                                     { c * d = 0 }
+                                     { g = (-65455)² = 4284387025 }
+                                     { g = 4284387025 }
+
+  {20} h := (a - b) & (c / d);       { c / d = division by zero → undefined }
+                                     { h = undefined }
+
+  {21} t := (a ^ 2) & (b ^ 2);       { a^2 = 0, b^2 = 4284387025 }
+                                     { t = 0 - 4284387025 = -4284387025 }
+                                     { t = -4284387025 }
+
+  write c;   { prints ≈ -4.28e9 }
+  write d;   { prints 0 }
+  write e;   { prints -336 }
+  write f;   { prints very large negative }
+  write g;   { prints 4284387025 }
+  write h;   { undefined (division by zero) }
+  write x;   { prints 1 }
+  write y;   { prints 4 }
+  write z;   { infinite loop, never reached }
+  write t;   { prints -4284387025 }
+*/
+
 // Enumeration of all token types in the language
 enum TokenType{
     // Keywords
