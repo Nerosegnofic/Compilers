@@ -188,34 +188,6 @@ const Token symbolic_tokens[]=
 // factor -> newexpr { ^ newexpr }       right associative
 // newexpr -> ( mathexpr ) | number | identifier
 
-// factor -> newexpr { ^ newexpr }    right associative
-// Handles exponentiation operator (^) with RIGHT associativity
-// Example: 2^3^2 is parsed as 2^(3^2) = 512
-TreeNode* Factor(CompilerInfo* pci, ParseInfo* ppi)
-{
-    pci->debug_file.Out("Start Factor");
-
-    TreeNode* tree=NewExpr(pci, ppi);
-
-    // Right associativity: recursively call Factor for right operand
-    if(ppi->next_token.type==POWER)
-    {
-        TreeNode* new_tree=new TreeNode;
-        new_tree->node_kind=OPER_NODE;
-        new_tree->oper=ppi->next_token.type;
-        new_tree->line_num=pci->in_file.cur_line_num;
-
-        new_tree->child[0]=tree;
-        Match(pci, ppi, ppi->next_token.type);
-        new_tree->child[1]=Factor(pci, ppi);  // Recursive call for right associativity
-
-        pci->debug_file.Out("End Factor");
-        return new_tree;
-    }
-    pci->debug_file.Out("End Factor");
-    return tree;
-}
-
 // andopr -> factor { (&) factor }    left associative
 // Handles the & operator (which I added) with LEFT associativity
 // The & operator computes: a^2 - b^2 (difference of squares)
@@ -269,61 +241,6 @@ TreeNode* Term(CompilerInfo* pci, ParseInfo* ppi)
         tree=new_tree;
     }
     pci->debug_file.Out("End Term");
-    return tree;
-}
-
-// mathexpr -> term { (+|-) term }    left associative
-// Handles addition and subtraction with LEFT associativity
-// Example: 10 - 3 + 2 is parsed as (10 - 3) + 2 = 9
-TreeNode* MathExpr(CompilerInfo* pci, ParseInfo* ppi)
-{
-    pci->debug_file.Out("Start MathExpr");
-
-    TreeNode* tree=Term(pci, ppi);
-
-    // Left associativity: process all + and - operators from left to right
-    while(ppi->next_token.type==PLUS || ppi->next_token.type==MINUS)
-    {
-        TreeNode* new_tree=new TreeNode;
-        new_tree->node_kind=OPER_NODE;
-        new_tree->oper=ppi->next_token.type;
-        new_tree->line_num=pci->in_file.cur_line_num;
-
-        new_tree->child[0]=tree;
-        Match(pci, ppi, ppi->next_token.type);
-        new_tree->child[1]=Term(pci, ppi);
-
-        tree=new_tree;
-    }
-    pci->debug_file.Out("End MathExpr");
-    return tree;
-}
-
-// expr -> mathexpr [ (<|=) mathexpr ]
-// Handles comparison operators: < (less than) and = (equality)
-// Example: x < 10, y = 5
-TreeNode* Expr(CompilerInfo* pci, ParseInfo* ppi)
-{
-    pci->debug_file.Out("Start Expr");
-
-    TreeNode* tree=MathExpr(pci, ppi);
-
-    // Optional comparison operator
-    if(ppi->next_token.type==EQUAL || ppi->next_token.type==LESS_THAN)
-    {
-        TreeNode* new_tree=new TreeNode;
-        new_tree->node_kind=OPER_NODE;
-        new_tree->oper=ppi->next_token.type;
-        new_tree->line_num=pci->in_file.cur_line_num;
-
-        new_tree->child[0]=tree;
-        Match(pci, ppi, ppi->next_token.type);
-        new_tree->child[1]=MathExpr(pci, ppi);
-
-        pci->debug_file.Out("End Expr");
-        return new_tree;
-    }
-    pci->debug_file.Out("End Expr");
     return tree;
 }
 
