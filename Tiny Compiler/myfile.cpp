@@ -1,9 +1,9 @@
 // ===================================================
 //                   TEAM MEMBERS
 // ===================================================
-//  • Ahmed Abdelnabi Abdelrasol Ibrahim   (20220027)
-//  • Muhammad Mostafa Ali Elsayed         (20220309)
-//  • Yusuf Naser Muhammad Kamal           (20220416)
+//   Ahmed Abdelnabi Abdelrasol Ibrahim   (20220027)
+//   Muhammad Mostafa Ali Elsayed         (20220309)
+//   Yusuf Naser Muhammad Kamal           (20220416)
 // ===================================================
 
 /*
