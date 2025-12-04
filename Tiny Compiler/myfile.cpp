@@ -227,26 +227,25 @@ TreeNode* AndOpr(CompilerInfo* pci, ParseInfo* ppi)
 // Example: 8 / 4 / 2 is parsed as (8 / 4) / 2 = 1
 TreeNode* Term(CompilerInfo* pci, ParseInfo* ppi)
 {
-    pci->debug_file.Out("Start Term");
+    pci->debug_file.Out("Start Term");                      // Log entry into Term parsing function
 
-    TreeNode* tree=AndOpr(pci, ppi);
+    TreeNode* tree=AndOpr(pci, ppi);                        // Parse first AndOpr (includes & operator)
 
-    // Left associativity: process all * and / operators from left to right
-    while(ppi->next_token.type==TIMES || ppi->next_token.type==DIVIDE)
+    while(ppi->next_token.type==TIMES || ppi->next_token.type==DIVIDE) // While next token is * or /
     {
-        TreeNode* new_tree=new TreeNode;
-        new_tree->node_kind=OPER_NODE;
-        new_tree->oper=ppi->next_token.type;
-        new_tree->line_num=pci->in_file.cur_line_num;
+        TreeNode* new_tree=new TreeNode;                    // Create a new operator node
+        new_tree->node_kind=OPER_NODE;                      // Mark node as an operator
+        new_tree->oper=ppi->next_token.type;                // Set operator type to * or /
+        new_tree->line_num=pci->in_file.cur_line_num;      // Store line number
 
-        new_tree->child[0]=tree;
-        Match(pci, ppi, ppi->next_token.type);
-        new_tree->child[1]=AndOpr(pci, ppi);
+        new_tree->child[0]=tree;                            // Left operand is the previously parsed tree
+        Match(pci, ppi, ppi->next_token.type);              // Consume the operator token
+        new_tree->child[1]=AndOpr(pci, ppi);               // Parse right operand
 
-        tree=new_tree;
+        tree=new_tree;                                      // Update tree for left associativity
     }
-    pci->debug_file.Out("End Term");
-    return tree;
+    pci->debug_file.Out("End Term");                        // Log exit from Term parsing function
+    return tree;                                            // Return the parsed term tree
 }
 
 // Evaluate - Recursively evaluates an expression tree
