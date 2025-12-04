@@ -116,7 +116,7 @@
   write x;   { prints 1 }
   write y;   { prints 4 }
   write z;   { infinite loop, never reached }
-  write t;   { prints -4284387025 }
+  write t    { prints -4284387025 }
 */
 
 // Enumeration of all token types in the language
