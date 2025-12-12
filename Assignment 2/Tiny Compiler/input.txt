@@ -126,7 +126,7 @@ until tc;
 write y;
 
 {21} a := y;
-     write a;
+     write a
 
 {22} { int a } {All variables must be declared at the beginning of the code }
 
