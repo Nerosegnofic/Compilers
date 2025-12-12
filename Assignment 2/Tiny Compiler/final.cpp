@@ -472,7 +472,7 @@ struct TreeNode
 
     NodeKind node_kind;
 
-    union{TokenType oper; int num; char* id; double real; bool boolean;}; // defined for expression/int/identifier only
+    union{TokenType oper; double num; char* id;}; // defined for expression/int/identifier only
     ExprDataType expr_data_type; // defined for expression/int/identifier only
 
     int line_num;
@@ -521,17 +521,18 @@ TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
     if(ppi->next_token.type==INT_VALUE)
     {
         tree->node_kind=INT_NODE;
-        tree->num=0; while(*str) tree->num=tree->num*10+((*str++)-'0');
+        int value=0; while(*str) value=value*10+((*str++)-'0');
+        tree->num=value;
     }
     else if(ppi->next_token.type==REAL_VALUE)
     {
         tree->node_kind=REAL_NODE;
-        tree->real=atof(str);
+        tree->num=atof(str);
     }
     else if(ppi->next_token.type==TRUE || ppi->next_token.type==FALSE)
     {
         tree->node_kind=BOOL_NODE;
-        tree->boolean=(ppi->next_token.type==TRUE);
+        tree->num=(ppi->next_token.type==TRUE);
     }
     if(ppi->next_token.type==ID)
     {
@@ -797,12 +798,7 @@ struct SymbolTable
     int num_vars; // total number of distinct variables (keeps track of symbol count)
     VariableInfo* var_info[SYMBOL_HASH_SIZE];
 
-    // counts for each type pool
-    int num_int_vars;
-    int num_real_vars;
-    int num_bool_vars;
-
-    SymbolTable() { num_vars=0; num_int_vars=0; num_real_vars=0; num_bool_vars=0; int i; for(i=0;i<SYMBOL_HASH_SIZE;i++) var_info[i]=0; }
+    SymbolTable() {num_vars=0; int i; for(i=0;i<SYMBOL_HASH_SIZE;i++) var_info[i]=0;}
 
     int Hash(const char* name)
     {
@@ -825,7 +821,7 @@ struct SymbolTable
     }
 
     // Declare a variable with a given type. If already declared, append line info.
-    void Declare(const char* name, VarType vtype, int line_num)
+    void Insert(const char* name, int line_num, VarType vtype)
     {
         LineLocation* lineloc=new LineLocation;
         lineloc->line_num=line_num;
@@ -839,11 +835,8 @@ struct SymbolTable
         {
             if(Equals(name, cur->name))
             {
-                // already declared -> record additional line
-                cur->tail_line->next=lineloc;
-                cur->tail_line=lineloc;
-                printf("ERROR redeclaration of variable %s at line %d\n", name, line_num - 1);
-                return;
+                printf("ERROR redeclaration of variable %s at line %d\n", name, line_num);
+                throw 0;
             }
             prev=cur;
             cur=cur->next_var;
@@ -852,20 +845,12 @@ struct SymbolTable
         VariableInfo* vi=new VariableInfo;
         vi->head_line=vi->tail_line=lineloc;
         vi->next_var=0;
-        vi->memloc = 0;
+        vi->memloc=num_vars++;
         vi->type = vtype;
         AllocateAndCopy(&vi->name, name);
 
-        // assign memloc according to type pool
-        if(vtype==VT_INT) vi->memloc = num_int_vars++;
-        else if(vtype==VT_REAL) vi->memloc = num_real_vars++;
-        else /*VT_BOOL*/ vi->memloc = num_bool_vars++;
-
-        vi->next_var = 0;
         if(!prev) var_info[h]=vi;
         else prev->next_var=vi;
-
-        num_vars++;
     }
 
     void Print()
@@ -914,9 +899,6 @@ struct SymbolTable
     }
 };
 
-// Forward declare Parse (updated signature)
-TreeNode* Parse(CompilerInfo* pci, SymbolTable* symbol_table);
-
 // ParseDeclarations: parse declarations at program start like "int x; real y; bool z;"
 void ParseDeclarations(CompilerInfo* pci, ParseInfo* ppi, SymbolTable* symbol_table)
 {
@@ -931,19 +913,16 @@ void ParseDeclarations(CompilerInfo* pci, ParseInfo* ppi, SymbolTable* symbol_ta
         Match(pci, ppi, ppi->next_token.type); // int/real/bool token
 
         if(ppi->next_token.type!=ID) { printf("ERROR Expected identifier in declaration at line %d\n", pci->in_file.cur_line_num); throw 0; }
-        char name_buf[MAX_TOKEN_LEN+1];
-        Copy(name_buf, ppi->next_token.str);
+
+        // record declaration
+        symbol_table->Insert(ppi->next_token.str, pci->in_file.cur_line_num, vtype);
+
         Match(pci, ppi, ID);
 
         // require semicolon
         Match(pci, ppi, SEMI_COLON);
-
-        // record declaration
-        symbol_table->Declare(name_buf, vtype, pci->in_file.cur_line_num);
     }
 }
-
-// Parser functions (RepeatStmt, IfStmt, etc.) already implemented above
 
 // Parse (program -> declarations then stmtseq)
 TreeNode* Parse(CompilerInfo* pci, SymbolTable* symbol_table)
@@ -972,9 +951,9 @@ void PrintTree(TreeNode* node, int sh=0)
     printf("[%s]", NodeKindStr[node->node_kind]);
 
     if(node->node_kind==OPER_NODE) printf("[%s]", TokenTypeStr[node->oper]);
-    else if(node->node_kind==INT_NODE) printf("[%d]", node->num);
-    else if(node->node_kind==REAL_NODE) printf("[%f]", node->real);
-    else if(node->node_kind==BOOL_NODE) printf("[%s]", node->boolean? "true":"false");
+    else if(node->node_kind==INT_NODE) printf("[%d]", (int)node->num);
+    else if(node->node_kind==REAL_NODE) printf("[%f]", node->num);
+    else if(node->node_kind==BOOL_NODE) printf("[%s]", (node->num != 0)? "true":"false");
     else if(node->node_kind==ID_NODE || node->node_kind==READ_NODE || node->node_kind==ASSIGN_NODE) printf("[%s]", node->id);
 
     if(node->expr_data_type!=VOID) printf("[%s]", ExprDataTypeStr[node->expr_data_type]);
@@ -1103,27 +1082,13 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     if(node->sibling) Analyze(node->sibling, symbol_table);
 }
 
-// Code Generator / Interpreter /////////////////////////////////////////////////
-
-// Evaluate numeric expression as double (promotes ints to real if needed).
-// For boolean results (comparisons), returns 1.0 for true, 0.0 for false.
-double Evaluate(TreeNode* node, SymbolTable* st, int* int_vars, double* real_vars, bool* bool_vars)
+double Evaluate(TreeNode* node, SymbolTable* symbol_table, double* variables)
 {
-    if(node->node_kind==INT_NODE) return (double)node->num;
-    if(node->node_kind==REAL_NODE) return node->real;
-    if(node->node_kind==BOOL_NODE) return node->boolean ? 1.0 : 0.0;
-    if(node->node_kind==ID_NODE)
-    {
-        VariableInfo* vi = st->Find(node->id);
-        if(!vi) { printf("Runtime ERROR: undeclared var %s\n", node->id); throw 0; }
-        if(vi->type==VT_INT) return (double)int_vars[vi->memloc];
-        if(vi->type==VT_REAL) return real_vars[vi->memloc];
-        // using bool in numeric context should have been caught by semantic analyzer
-        return bool_vars[vi->memloc] ? 1.0 : 0.0;
-    }
+    if(node->node_kind==INT_NODE || node->node_kind==REAL_NODE || node->node_kind==BOOL_NODE) return node->num;
+    if(node->node_kind==ID_NODE) return variables[symbol_table->Find(node->id)->memloc];
 
-    double a=Evaluate(node->child[0], st, int_vars, real_vars, bool_vars);
-    double b=Evaluate(node->child[1], st, int_vars, real_vars, bool_vars);
+    double a=Evaluate(node->child[0], symbol_table, variables);
+    double b=Evaluate(node->child[1], symbol_table, variables);
 
     if(node->oper==EQUAL) return a==b;
     if(node->oper==LESS_THAN) return a<b;
@@ -1137,53 +1102,41 @@ double Evaluate(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
 }
 
 // RunProgram: uses separate pools
-void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_vars, bool* bool_vars)
+void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
 {
-    if(!node) return;
-
     if(node->node_kind==IF_NODE)
     {
-        double cond = Evaluate(node->child[0], st, int_vars, real_vars, bool_vars);
-        if(cond != 0) RunProgram(node->child[1], st, int_vars, real_vars, bool_vars);
-        else if(node->child[2]) RunProgram(node->child[2], st, int_vars, real_vars, bool_vars);
+        double cond = Evaluate(node->child[0], symbol_table, variables);
+        if(cond != 0) RunProgram(node->child[1], symbol_table, variables);
+        else if(node->child[2]) RunProgram(node->child[2], symbol_table, variables);
     }
     else if(node->node_kind==ASSIGN_NODE)
     {
-        VariableInfo* vi = st->Find(node->id);
+        VariableInfo* vi = symbol_table->Find(node->id);
         if(!vi) { printf("Runtime ERROR assignment to undeclared var %s\n", node->id); throw 0;}
         else
         {
             // assignment: evaluate right-hand side as numeric or boolean depending on var type
-            double val = Evaluate(node->child[0], st, int_vars, real_vars, bool_vars);
-            if(vi->type==VT_INT)
-            {
-                int_vars[vi->memloc] = val;
-            }
-            else if(vi->type==VT_REAL)
-            {
-                real_vars[vi->memloc] = val;
-            }
-            else // bool
-            {
-                bool_vars[vi->memloc] = (val!=0);
-            }
+            variables[vi->memloc] = Evaluate(node->child[0], symbol_table, variables);
         }
     }
     else if(node->node_kind==READ_NODE)
     {
-        VariableInfo* vi = st->Find(node->id);
+        VariableInfo* vi = symbol_table->Find(node->id);
         if(!vi) { printf("Runtime ERROR read undeclared var %s\n", node->id); throw 0;}
         else
         {
             if(vi->type==VT_INT)
             {
+                int val;
                 printf("Enter %s (int): ", node->id);
-                scanf("%d", &int_vars[vi->memloc]);
+                scanf("%d", &val);
+                variables[vi->memloc] = val;
             }
             else if(vi->type==VT_REAL)
             {
                 printf("Enter %s (real): ", node->id);
-                scanf("%lf", &real_vars[vi->memloc]);
+                scanf("%lf", &variables[vi->memloc]);
             }
             else
             {
@@ -1191,9 +1144,9 @@ void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
                 char input[100];
                 scanf("%s", input);
                 if (Equals(input, "true"))
-                    bool_vars[vi->memloc] = true;
+                    variables[vi->memloc] = 1.0;
                 else if(Equals(input, "false"))
-                    bool_vars[vi->memloc] = false;
+                    variables[vi->memloc] = 0.0;
                 else{
                     printf("Runtime ERROR %s can't be assign't to bool (true/false)", node->id);
                     throw 0;
@@ -1204,7 +1157,7 @@ void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
     else if(node->node_kind==WRITE_NODE)
     {
         TreeNode* expr = node->child[0];
-        double value = Evaluate(expr, st, int_vars, real_vars, bool_vars);
+        double value = Evaluate(expr, symbol_table, variables);
         if(expr->expr_data_type==REAL)
         {
             printf("Val: %f\n", value);
@@ -1222,31 +1175,21 @@ void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
     {
         do
         {
-           RunProgram(node->child[0], st, int_vars, real_vars, bool_vars);
+           RunProgram(node->child[0], symbol_table, variables);
         }
-        while(Evaluate(node->child[1], st, int_vars, real_vars, bool_vars) == 0);
+        while(Evaluate(node->child[1], symbol_table, variables) == 0);
     }
 
-    if(node->sibling) RunProgram(node->sibling, st, int_vars, real_vars, bool_vars);
+    if(node->sibling) RunProgram(node->sibling, symbol_table, variables);
 }
 
-// Helper to allocate pools and start runtime
 void RunProgram(TreeNode* syntax_tree, SymbolTable* symbol_table)
 {
     int i;
-    int* int_vars = new int[symbol_table->num_int_vars];
-    double* real_vars = new double[symbol_table->num_real_vars];
-    bool* bool_vars = new bool[symbol_table->num_bool_vars];
-
-    for(i=0;i<symbol_table->num_int_vars;i++) int_vars[i]=0;
-    for(i=0;i<symbol_table->num_real_vars;i++) real_vars[i]=0.0;
-    for(i=0;i<symbol_table->num_bool_vars;i++) bool_vars[i]=false;
-
-    RunProgram(syntax_tree, symbol_table, int_vars, real_vars, bool_vars);
-
-    delete[] int_vars;
-    delete[] real_vars;
-    delete[] bool_vars;
+    double* variables=new double[symbol_table->num_vars];
+    for(i=0;i<symbol_table->num_vars;i++) variables[i]=0;
+    RunProgram(syntax_tree, symbol_table, variables);
+    delete[] variables;
 }
 
 // Scanner only //////////////////////////////////////////////////////////////////
