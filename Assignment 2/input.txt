@@ -1,0 +1,3 @@
+real x;
+read x;
+write x + 5.5
