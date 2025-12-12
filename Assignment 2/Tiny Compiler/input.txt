@@ -1,3 +1,23 @@
-real x;
+bool x;
+int y;
+real z;
+
 read x;
-write x + 5.5
+read y;
+read z;
+
+if x then
+    write 1
+else
+    write 0
+end;
+
+if y < 4 then
+    write y
+else
+    write 4
+end;
+
+write y * z;
+
+write x * y

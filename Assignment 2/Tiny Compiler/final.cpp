@@ -905,7 +905,7 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
         if(!vi)
         {
             printf("ERROR Undeclared variable %s at line %d\n", node->id, node->line_num);
-            // continue but will cause more errors later
+            throw 0;
         }
         else
         {
@@ -929,7 +929,11 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
             // arithmetic or AND operator: left and right must be numeric for arithmetic, boolean only for comparisons
             ExprDataType leftType = node->child[0]->expr_data_type;
             ExprDataType rightType = node->child[1]->expr_data_type;
-            if(leftType==BOOLEAN || rightType==BOOLEAN) printf("ERROR arithmetic operator applied to boolean at line %d\n", node->line_num);
+            if(leftType==BOOLEAN || rightType==BOOLEAN)
+            {
+                printf("ERROR arithmetic operator applied to boolean at line %d\n", node->line_num);
+                throw 0;
+            }
             else node->expr_data_type = (leftType==REAL || rightType==REAL) ? REAL : INTEGER;
         }
     }
@@ -948,20 +952,17 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     // ID_NODE assigned earlier
 
     // If-if and repeat conditions must be boolean
-    if(node->node_kind==IF_NODE)
+    if(node->node_kind==IF_NODE && node->child[0]->expr_data_type!=BOOLEAN)
     {
-        if(node->child[0]->expr_data_type!=BOOLEAN) printf("ERROR If test must be BOOLEAN at line %d\n", node->line_num);
+        printf("ERROR If test must be BOOLEAN at line %d\n", node->line_num);
+        throw 0;
     }
     if(node->node_kind==REPEAT_NODE)
     {
-        if(node->child[1]->expr_data_type!=BOOLEAN) printf("ERROR Repeat test must be BOOLEAN at line %d\n", node->line_num);
-    }
-
-    // WRITE only allows numeric outputs in this version (int or real)
-    if(node->node_kind==WRITE_NODE)
-    {
-        if(node->child[0]->expr_data_type!=INTEGER && node->child[0]->expr_data_type!=REAL)
-            printf("ERROR Write works only for numeric types at line %d\n", node->line_num);
+        if(node->child[1]->expr_data_type!=BOOLEAN){
+            printf("ERROR Repeat test must be BOOLEAN at line %d\n", node->line_num);
+            throw 0;
+        }
     }
 
     // Assignments: left side is ID node; ensure types match exactly
@@ -969,7 +970,10 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     {
         // left is variable (ID at node->id), right is child[0]
         VariableInfo* vi = symbol_table->Find(node->id);
-        if(!vi) printf("ERROR Assignment to undeclared variable %s at line %d\n", node->id, node->line_num);
+        if(!vi){
+            printf("ERROR Assignment to undeclared variable %s at line %d\n", node->id, node->line_num);
+            throw 0;
+        }
         else
         {
             ExprDataType rhsType = node->child[0]->expr_data_type;
@@ -979,7 +983,10 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
             {
                 // allow implicit int->real in rhs numeric expressions
                 if(!(lhsType==REAL && rhsType==INTEGER))
+                {
                     printf("ERROR Type mismatch on assignment to %s at line %d\n", vi->name, node->line_num);
+                    throw 0;
+                }
             }
         }
     }
@@ -999,7 +1006,7 @@ double Evaluate(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
     if(node->node_kind==ID_NODE)
     {
         VariableInfo* vi = st->Find(node->id);
-        if(!vi) { printf("Runtime ERROR: undeclared var %s\n", node->id); return 0.0; }
+        if(!vi) { printf("Runtime ERROR: undeclared var %s\n", node->id); throw 0; }
         if(vi->type==VT_INT) return (double)int_vars[vi->memloc];
         if(vi->type==VT_REAL) return real_vars[vi->memloc];
         // using bool in numeric context should have been caught by semantic analyzer
@@ -1035,7 +1042,7 @@ void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
     else if(node->node_kind==ASSIGN_NODE)
     {
         VariableInfo* vi = st->Find(node->id);
-        if(!vi) { printf("Runtime ERROR assignment to undeclared var %s\n", node->id); }
+        if(!vi) { printf("Runtime ERROR assignment to undeclared var %s\n", node->id); throw 0;}
         else
         {
             // assignment: evaluate right-hand side as numeric or boolean depending on var type
@@ -1057,7 +1064,7 @@ void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
     else if(node->node_kind==READ_NODE)
     {
         VariableInfo* vi = st->Find(node->id);
-        if(!vi) { printf("Runtime ERROR read undeclared var %s\n", node->id); }
+        if(!vi) { printf("Runtime ERROR read undeclared var %s\n", node->id); throw 0;}
         else
         {
             if(vi->type==VT_INT)
@@ -1079,8 +1086,10 @@ void RunProgram(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
                     bool_vars[vi->memloc] = true;
                 else if(Equals(input, "false"))
                     bool_vars[vi->memloc] = false;
-                else
+                else{
                     printf("Runtime ERROR %s can't be assign't to bool (true/false)", node->id);
+                    throw 0;
+                }
             }
         }
     }
