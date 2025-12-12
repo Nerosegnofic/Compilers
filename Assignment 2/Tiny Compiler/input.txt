@@ -1,23 +1,88 @@
-bool x;
-int y;
-real z;
+int a;
+real b;
+bool c;
+int x;
+real y;
+bool z;
+int ra;
+real rb;
+int rc;
+bool ta;
+bool tb;
+bool tc;
 
-read x;
-read y;
-read z;
+a := 5;                { a = 5 }
+b := 3.5;              { b = 3.5 }
+c := true;             { c = true }
 
-if x then
+{1}  x := a + 3;
+     { 5 + 3 = 8 }
+     { x = 8 }
+write x;
+
+{2}  y := b * 2.0;
+     { 3.5 * 2.0 = 7.0 }
+     { y = 7.0 }
+write y;
+
+{3}  z := a < 10;
+     { 5 < 10 = true }
+write z;
+
+{4}  ta := (a = 5);
+     { true }
+write ta;
+
+{5}  tb := (b < 1.0);
+     { false }
+write tb;
+
+{6}  ra := a + a;
+     { 5 + 5 = 10 }
+write ra;
+
+{7}  rb := b + a;
+     { 3.5 + 5 = 8.5 }
+write rb;
+
+{8}  rc := a + (a + 1);
+     { 5 + (5 + 1) = 11}
+write rc;
+
+{9} write a^b;
+
+{10} write b^a;
+
+{11} a := (a ^ 2);
+    { 5^2 = 25 }
+write a;
+
+{12} b := (b ^ 3);
+     { b = 3.5^3 }
+     { b = 42.875}
+write b;
+
+{13} c := (5 < 2);
+     { c = false }
+write c;
+
+{14} if c = false then
     write 1
-else
+    else
     write 0
 end;
 
-if y < 4 then
-    write y
-else
-    write 4
-end;
+{15} if a < 10 then
+     write 1
+     else
+     write 0
+     end;
 
-write y * z;
+{16} x := 0;
+repeat
+    x := x + 1;
+    write x
+until x = 3;
 
-write x * y
+{18} y := a;
+write y
