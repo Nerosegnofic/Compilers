@@ -781,12 +781,10 @@ struct LineLocation
     LineLocation* next;
 };
 
-enum VarType {VT_INT, VT_REAL, VT_BOOL};
-
 struct VariableInfo
 {
     char* name;
-    VarType type;      // variable type
+    ExprDataType type;      // variable type
     int memloc;        // index in the corresponding pool (int/real/bool)
     LineLocation* head_line; // source line locations linked list
     LineLocation* tail_line;
@@ -822,7 +820,7 @@ struct SymbolTable
     }
 
     // Declare a variable with a given type. If already declared, append line info.
-    void Insert(const char* name, int line_num, VarType vtype)
+    void Insert(const char* name, int line_num, ExprDataType vtype)
     {
         LineLocation* lineloc=new LineLocation;
         lineloc->line_num=line_num;
@@ -862,8 +860,7 @@ struct SymbolTable
             VariableInfo* curv=var_info[i];
             while(curv)
             {
-                const char* tstr = (curv->type==VT_INT) ? "int" : ((curv->type==VT_REAL) ? "real" : "bool");
-                printf("[Var=%s][Type=%s][Mem=%d]", curv->name, tstr, curv->memloc);
+                printf("[Var=%s][Mem=%d]", curv->name, curv->memloc);
                 LineLocation* curl=curv->head_line;
                 while(curl)
                 {
@@ -906,10 +903,10 @@ void ParseDeclarations(CompilerInfo* pci, ParseInfo* ppi, SymbolTable* symbol_ta
     // permit zero or more declarations
     while(ppi->next_token.type==INT_TYPE || ppi->next_token.type==REAL_TYPE || ppi->next_token.type==BOOL_TYPE)
     {
-        VarType vtype;
-        if(ppi->next_token.type==INT_TYPE) vtype = VT_INT;
-        else if(ppi->next_token.type==REAL_TYPE) vtype = VT_REAL;
-        else vtype = VT_BOOL;
+        ExprDataType vtype;
+        if(ppi->next_token.type==INT_TYPE) vtype = INTEGER;
+        else if(ppi->next_token.type==REAL_TYPE) vtype = REAL;
+        else vtype = BOOLEAN;
 
         Match(pci, ppi, ppi->next_token.type); // int/real/bool token
 
@@ -992,9 +989,7 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     {
         VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
         // set node expr_data_type based on variable info
-        if(vi->type==VT_INT) node->expr_data_type = INTEGER;
-        else if(vi->type==VT_REAL) node->expr_data_type = REAL;
-        else node->expr_data_type = BOOLEAN;
+        node->expr_data_type = vi->type;
     }
 
     // Recurse into children
@@ -1052,7 +1047,7 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
         // left is variable (ID at node->id), right is child[0]
         VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
         ExprDataType rhsType = node->child[0]->expr_data_type;
-        ExprDataType lhsType = (vi->type==VT_INT) ? INTEGER : (vi->type==VT_REAL ? REAL : BOOLEAN);
+        ExprDataType lhsType = vi->type;
 
         if(lhsType!=rhsType)
         {
@@ -1105,14 +1100,14 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
     else if(node->node_kind==READ_NODE)
     {
         VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
-        if(vi->type==VT_INT)
+        if(vi->type==INTEGER)
         {
             int val;
             printf("Enter %s (int): ", node->id);
             scanf("%d", &val);
             variables[vi->memloc] = val;
         }
-        else if(vi->type==VT_REAL)
+        else if(vi->type==REAL)
         {
             printf("Enter %s (real): ", node->id);
             scanf("%lf", &variables[vi->memloc]);
