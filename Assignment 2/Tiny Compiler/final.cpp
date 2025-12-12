@@ -452,7 +452,7 @@ enum NodeKind{
 const char* NodeKindStr[]=
             {
                 "If", "Repeat", "Assign", "Read", "Write",
-                "Oper", "Num", "ID", "Int", "Bool", "Real"
+                "Oper", "ID", "Int", "Bool", "Real"
             };
 
 enum ExprDataType {VOID, INTEGER, REAL, BOOLEAN};
@@ -808,7 +808,7 @@ struct SymbolTable
         return hash_val;
     }
 
-    VariableInfo* Find(const char* name)
+    VariableInfo* Find(const char* name, int line_num)
     {
         int h=Hash(name);
         VariableInfo* cur=var_info[h];
@@ -817,7 +817,8 @@ struct SymbolTable
             if(Equals(name, cur->name)) return cur;
             cur=cur->next_var;
         }
-        return 0;
+        printf("ERROR using undeclared variable %s at line %d\n", name, line_num);
+        throw 0;
     }
 
     // Declare a variable with a given type. If already declared, append line info.
@@ -989,19 +990,11 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     // If encountering an identifier node, make sure it's declared and set its expr_data_type
     if(node->node_kind==ID_NODE || node->node_kind==READ_NODE || node->node_kind==ASSIGN_NODE)
     {
-        VariableInfo* vi = symbol_table->Find(node->id);
-        if(!vi)
-        {
-            printf("ERROR Undeclared variable %s at line %d\n", node->id, node->line_num);
-            throw 0;
-        }
-        else
-        {
-            // set node expr_data_type based on variable info
-            if(vi->type==VT_INT) node->expr_data_type = INTEGER;
-            else if(vi->type==VT_REAL) node->expr_data_type = REAL;
-            else node->expr_data_type = BOOLEAN;
-        }
+        VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
+        // set node expr_data_type based on variable info
+        if(vi->type==VT_INT) node->expr_data_type = INTEGER;
+        else if(vi->type==VT_REAL) node->expr_data_type = REAL;
+        else node->expr_data_type = BOOLEAN;
     }
 
     // Recurse into children
@@ -1057,24 +1050,17 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     if(node->node_kind==ASSIGN_NODE)
     {
         // left is variable (ID at node->id), right is child[0]
-        VariableInfo* vi = symbol_table->Find(node->id);
-        if(!vi){
-            printf("ERROR Assignment to undeclared variable %s at line %d\n", node->id, node->line_num);
-            throw 0;
-        }
-        else
-        {
-            ExprDataType rhsType = node->child[0]->expr_data_type;
-            ExprDataType lhsType = (vi->type==VT_INT) ? INTEGER : (vi->type==VT_REAL ? REAL : BOOLEAN);
+        VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
+        ExprDataType rhsType = node->child[0]->expr_data_type;
+        ExprDataType lhsType = (vi->type==VT_INT) ? INTEGER : (vi->type==VT_REAL ? REAL : BOOLEAN);
 
-            if(lhsType!=rhsType)
+        if(lhsType!=rhsType)
+        {
+            // allow implicit int->real in rhs numeric expressions
+            if(lhsType==BOOLEAN || rhsType==BOOLEAN)
             {
-                // allow implicit int->real in rhs numeric expressions
-                if(lhsType==BOOLEAN || rhsType==BOOLEAN)
-                {
-                    printf("ERROR Type mismatch on assignment to %s at line %d\n", vi->name, node->line_num);
-                    throw 0;
-                }
+                printf("ERROR Type mismatch on assignment to %s at line %d\n", vi->name, node->line_num);
+                throw 0;
             }
         }
     }
@@ -1085,7 +1071,7 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
 double Evaluate(TreeNode* node, SymbolTable* symbol_table, double* variables)
 {
     if(node->node_kind==INT_NODE || node->node_kind==REAL_NODE || node->node_kind==BOOL_NODE) return node->num;
-    if(node->node_kind==ID_NODE) return variables[symbol_table->Find(node->id)->memloc];
+    if(node->node_kind==ID_NODE) return variables[symbol_table->Find(node->id, node->line_num)->memloc];
 
     double a=Evaluate(node->child[0], symbol_table, variables);
     double b=Evaluate(node->child[1], symbol_table, variables);
@@ -1112,45 +1098,38 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
     }
     else if(node->node_kind==ASSIGN_NODE)
     {
-        VariableInfo* vi = symbol_table->Find(node->id);
-        if(!vi) { printf("Runtime ERROR assignment to undeclared var %s\n", node->id); throw 0;}
-        else
-        {
-            // assignment: evaluate right-hand side as numeric or boolean depending on var type
-            variables[vi->memloc] = Evaluate(node->child[0], symbol_table, variables);
-        }
+        VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
+        // assignment: evaluate right-hand side as numeric or boolean depending on var type
+        variables[vi->memloc] = Evaluate(node->child[0], symbol_table, variables);
     }
     else if(node->node_kind==READ_NODE)
     {
-        VariableInfo* vi = symbol_table->Find(node->id);
-        if(!vi) { printf("Runtime ERROR read undeclared var %s\n", node->id); throw 0;}
+        VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
+        if(vi->type==VT_INT)
+        {
+            int val;
+            printf("Enter %s (int): ", node->id);
+            scanf("%d", &val);
+            variables[vi->memloc] = val;
+        }
+        else if(vi->type==VT_REAL)
+        {
+            printf("Enter %s (real): ", node->id);
+            scanf("%lf", &variables[vi->memloc]);
+        }
         else
         {
-            if(vi->type==VT_INT)
-            {
-                int val;
-                printf("Enter %s (int): ", node->id);
-                scanf("%d", &val);
-                variables[vi->memloc] = val;
-            }
-            else if(vi->type==VT_REAL)
-            {
-                printf("Enter %s (real): ", node->id);
-                scanf("%lf", &variables[vi->memloc]);
-            }
+            printf("Enter %s (bool): ", node->id);
+                char input[100];
+            scanf("%s", input);
+            if (Equals(input, "true"))
+                variables[vi->memloc] = 1.0;
+            else if(Equals(input, "false"))
+                variables[vi->memloc] = 0.0;
             else
             {
-                printf("Enter %s (bool): ", node->id);
-                char input[100];
-                scanf("%s", input);
-                if (Equals(input, "true"))
-                    variables[vi->memloc] = 1.0;
-                else if(Equals(input, "false"))
-                    variables[vi->memloc] = 0.0;
-                else{
-                    printf("Runtime ERROR %s can't be assign't to bool (true/false)", node->id);
-                    throw 0;
-                }
+                printf("Runtime ERROR %s can't be assign't to bool (true/false)", node->id);
+                throw 0;
             }
         }
     }
@@ -1177,7 +1156,7 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
         {
            RunProgram(node->child[0], symbol_table, variables);
         }
-        while(Evaluate(node->child[1], symbol_table, variables) == 0);
+        while(!Evaluate(node->child[1], symbol_table, variables));
     }
 
     if(node->sibling) RunProgram(node->sibling, symbol_table, variables);
