@@ -1,9 +1,10 @@
 // ===================================================
 //                   TEAM MEMBERS
 // ===================================================
-//  • Ahmed Abdelnabi Abdelrasol Ibrahim   (20220027)
-//  • Muhammad Mostafa Ali Elsayed         (20220309)
-//  • Yusuf Naser Muhammad Kamal           (20220416)
+//    Ahmed Abdelnabi Abdelrasol Ibrahim   (20220027)
+//    George Rafaat Saber Reyad            (20220097)
+//    Muhammad Mostafa Ali Elsayed         (20220309)
+//    Yusuf Naser Muhammad Kamal           (20220416)
 // ===================================================
 
 #include <cstdio>
@@ -11,20 +12,6 @@
 #include <cstring>
 #include <cmath>
 using namespace std;
-
-/*
-read a;     { a = 5 }
-read b;     { b = 3 }
-
-{1}  c := a & b;                   
-     { 25 - 9 = 16 }
-     { c = 16 }
-write c;
-
-... (rest of sample comments preserved)
-*/
-
-// (original comments trimmed here for brevity in this snippet)
 
 // Strings /////////////////////////////////////////////////////////////////////////
 
@@ -153,7 +140,7 @@ enum TokenType{
                 // new type keywords
                 INT_TYPE, REAL_TYPE, BOOL_TYPE, TRUE, FALSE,
                 ASSIGN, EQUAL, LESS_THAN,
-                PLUS, MINUS, TIMES, DIVIDE, POWER, AND,
+                PLUS, MINUS, TIMES, DIVIDE, POWER,
                 SEMI_COLON,
                 LEFT_PAREN, RIGHT_PAREN,
                 LEFT_BRACE, RIGHT_BRACE,
@@ -165,9 +152,9 @@ enum TokenType{
 const char* TokenTypeStr[]=
             {
                 "If", "Then", "Else", "End", "Repeat", "Until", "Read", "Write",
-                "IntType", "RealType", "BoolType", "True", "False"
+                "IntType", "RealType", "BoolType", "True", "False",
                 "Assign", "Equal", "LessThan",
-                "Plus", "Minus", "Times", "Divide", "Power", "And",
+                "Plus", "Minus", "Times", "Divide", "Power",
                 "SemiColon",
                 "LeftParen", "RightParen",
                 "LeftBrace", "RightBrace",
@@ -210,7 +197,6 @@ const Token symbolic_tokens[]=
     Token(EQUAL, "="),
     Token(LESS_THAN, "<"),
     Token(PLUS, "+"),
-    Token(AND, "&"),
     Token(MINUS, "-"),
     Token(TIMES, "*"),
     Token(DIVIDE, "/"),
@@ -305,8 +291,7 @@ void GetNextToken(CompilerInfo* pci, Token* ptoken)
 // writestmt -> write expr
 // expr -> mathexpr [ (<|=) mathexpr ]
 // mathexpr -> term { (+|-) term }       left associative
-// term -> andopr { (*|/) andopr }       left associative
-// andopr -> factor { (&) factor }    left associative
+// term -> factor { (*|/) factor }       left associative
 // factor -> newexpr { ^ newexpr }       right associative
 // newexpr -> ( mathexpr ) | number | identifier
 
@@ -362,7 +347,7 @@ void Match(CompilerInfo* pci, ParseInfo* ppi, TokenType expected_token_type)
     fprintf(pci->debug_file.file, "[%d] %s (%s)\n", pci->in_file.cur_line_num, ppi->next_token.str, TokenTypeStr[ppi->next_token.type]); fflush(pci->debug_file.file);
 }
 
-TreeNode* MathExpr(CompilerInfo*, ParseInfo*);
+TreeNode* Expr(CompilerInfo*, ParseInfo*);
 
 // newexpr -> ( mathexpr ) | number | identifier
 TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
@@ -374,7 +359,7 @@ TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
     if(ppi->next_token.type==LEFT_PAREN)
     {
         Match(pci, ppi, LEFT_PAREN);
-        TreeNode* tree=MathExpr(pci, ppi);
+        TreeNode* tree=Expr(pci, ppi);
         Match(pci, ppi, RIGHT_PAREN);
 
         pci->debug_file.Out("End NewExpr");
@@ -438,36 +423,12 @@ TreeNode* Factor(CompilerInfo* pci, ParseInfo* ppi)
     return tree;
 }
 
-// andopr -> factor { (&) factor } left associative
-TreeNode* AndOpr(CompilerInfo* pci, ParseInfo* ppi)
-{
-    pci->debug_file.Out("Start AndOpr");
-
-    TreeNode* tree=Factor(pci, ppi);
-
-    while(ppi->next_token.type==AND)
-    {
-        TreeNode* new_tree=new TreeNode;
-        new_tree->node_kind=OPER_NODE;
-        new_tree->oper=ppi->next_token.type;
-        new_tree->line_num=pci->in_file.cur_line_num;
-
-        new_tree->child[0]=tree;
-        Match(pci, ppi, ppi->next_token.type);
-        new_tree->child[1]=Factor(pci, ppi);
-
-        tree=new_tree;
-    }
-    pci->debug_file.Out("End AndOpr");
-    return tree;
-}
-
-// term -> andopr { (*|/) andopr }    left associative
+// term -> factor { (*|/) factor }    left associative
 TreeNode* Term(CompilerInfo* pci, ParseInfo* ppi)
 {
     pci->debug_file.Out("Start Term");
 
-    TreeNode* tree=AndOpr(pci, ppi);
+    TreeNode* tree=Factor(pci, ppi);
 
     while(ppi->next_token.type==TIMES || ppi->next_token.type==DIVIDE)
     {
@@ -478,7 +439,7 @@ TreeNode* Term(CompilerInfo* pci, ParseInfo* ppi)
 
         new_tree->child[0]=tree;
         Match(pci, ppi, ppi->next_token.type);
-        new_tree->child[1]=AndOpr(pci, ppi);
+        new_tree->child[1]=Factor(pci, ppi);
 
         tree=new_tree;
     }
@@ -733,7 +694,7 @@ struct SymbolTable
                 // already declared -> record additional line
                 cur->tail_line->next=lineloc;
                 cur->tail_line=lineloc;
-                printf("ERROR redeclaration of variable %s at line %d\n", name, line_num);
+                printf("ERROR redeclaration of variable %s at line %d\n", name, line_num - 1);
                 return;
             }
             prev=cur;
@@ -982,7 +943,7 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
             if(lhsType!=rhsType)
             {
                 // allow implicit int->real in rhs numeric expressions
-                if(!(lhsType==REAL && rhsType==INTEGER))
+                if(lhsType==BOOLEAN || rhsType==BOOLEAN)
                 {
                     printf("ERROR Type mismatch on assignment to %s at line %d\n", vi->name, node->line_num);
                     throw 0;
@@ -1023,7 +984,6 @@ double Evaluate(TreeNode* node, SymbolTable* st, int* int_vars, double* real_var
     if(node->oper==TIMES) return a*b;
     if(node->oper==DIVIDE) return a/b;
     if(node->oper==POWER) return pow(a,b);
-    if(node->oper==AND) return (a*a)-(b*b);
     throw 0;
     return 0.0;
 }
