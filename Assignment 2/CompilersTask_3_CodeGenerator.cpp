@@ -402,8 +402,13 @@ void GetNextToken(CompilerInfo* pci, Token* ptoken)
     {
         int j=1;
         while(IsDigit(s[j])) j++;
-
-        ptoken->type=NUM;
+        if (s[j]=='.'){
+            j++;
+            while(IsDigit(s[j])) j++;
+            ptoken->type=REALTYPE;
+        } else {
+            ptoken->type=INT;
+        }
         Copy(ptoken->str, s, j);
     }
     else if(IsLetterOrUnderscore(s[0]))
@@ -476,7 +481,7 @@ struct TreeNode
 
     NodeKind node_kind;
 
-    union{TokenType oper; double num; char* id;}; // defined for expression/int/identifier only // we changed here
+    union{TokenType oper; int num; char* id; double real; bool boolean;}; // defined for expression/int/identifier only // we changed here
     ExprDataType expr_data_type; // defined for expression/int/identifier only
 
     int line_num;
@@ -508,44 +513,6 @@ TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
 
     // Compare the next token with the First() of possible statements
 
-    if(ppi->next_token.type==NUM)
-    {
-        TreeNode* tree=new TreeNode;
-        tree->node_kind=NUM_NODE;
-        char* num_str=ppi->next_token.str;
-        tree->num=0; while(*num_str) tree->num=tree->num*10+((*num_str++)-'0');
-        tree->line_num=pci->in_file.cur_line_num;
-        Match(pci, ppi, ppi->next_token.type);
-        if(ppi->next_token.type==DOT){
-            Match(pci, ppi, ppi->next_token.type);
-            char* num_str=ppi->next_token.str;
-            double frac = 0.0;
-            int k = 1;
-            while(*num_str) {
-                int digit = (*num_str++) - '0';
-                frac += digit / pow(10.0, k);
-                k++;
-            }
-            Match(pci, ppi, ppi->next_token.type);
-
-        }
-        pci->debug_file.Out("End NewExpr");
-        return tree;
-    }
-
-
-    if(ppi->next_token.type==ID)
-    {
-        TreeNode* tree=new TreeNode;
-        tree->node_kind=ID_NODE;
-        AllocateAndCopy(&tree->id, ppi->next_token.str);
-        tree->line_num=pci->in_file.cur_line_num;
-        Match(pci, ppi, ppi->next_token.type);
-
-        pci->debug_file.Out("End NewExpr");
-        return tree;
-    }
-
     if(ppi->next_token.type==LEFT_PAREN)
     {
         Match(pci, ppi, LEFT_PAREN);
@@ -555,6 +522,34 @@ TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
         pci->debug_file.Out("End NewExpr");
         return tree;
     }
+
+    TreeNode* tree=new TreeNode;
+    char* str=ppi->next_token.str;
+    tree->line_num=pci->in_file.cur_line_num;
+
+    if(ppi->next_token.type==INT)
+    {
+        tree->node_kind=INT_NODE;
+        tree->num=0; while(*str) tree->num=tree->num*10+((*str++)-'0');
+    }
+    else if(ppi->next_token.type==REALTYPE)
+    {
+        tree->node_kind=REAL_NODE;
+        tree->real=atof(str);
+    }
+    else if(ppi->next_token.type==BOOL)
+    {
+        tree->node_kind=BOOL_NODE;
+        tree->boolean=Equals(str, "true");
+    }
+    if(ppi->next_token.type==ID)
+    {
+        tree->node_kind=ID_NODE;
+        AllocateAndCopy(&tree->id, str);
+    }
+    Match(pci, ppi, ppi->next_token.type);
+    pci->debug_file.Out("End NewExpr");
+    return tree;
 
     throw 0;
     return 0;
@@ -853,7 +848,9 @@ void PrintTree(TreeNode* node, int sh=0)
     printf("[%s]", NodeKindStr[node->node_kind]);
 
     if(node->node_kind==OPER_NODE) printf("[%s]", TokenTypeStr[node->oper]);
-    else if(node->node_kind==NUM_NODE) printf("[%d]", node->num);
+    else if(node->node_kind==INT_NODE) printf("[%d]", node->num);
+    else if(node->node_kind==REAL_NODE) printf("[%f]", node->real);
+    else if(node->node_kind==BOOL_NODE) printf("[%s]", node->boolean?"true":"false");
     else if(node->node_kind==ID_NODE || node->node_kind==READ_NODE || node->node_kind==ASSIGN_NODE) printf("[%s]", node->id);
 
     if(node->expr_data_type!=VOID) printf("[%s]", ExprDataTypeStr[node->expr_data_type]);
@@ -892,6 +889,7 @@ struct VariableInfo
 {
     char* name;
     int memloc;
+    ExprDataType data_type;
     LineLocation* head_line; // the head of linked list of source line locations
     LineLocation* tail_line; // the tail of linked list of source line locations
     VariableInfo* next_var; // the next variable in the linked list in the same hash bucket of the symbol table
@@ -1016,7 +1014,16 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
         if(node->oper==EQUAL || node->oper==LESS_THAN) node->expr_data_type=BOOLEAN;
         else node->expr_data_type=INTEGER; // add real
     }
-    else if(node->node_kind==ID_NODE || node->node_kind==NUM_NODE) node->expr_data_type=INTEGER;
+
+    else if(node->node_kind==ID_NODE){
+        node->expr_data_type=symbol_table->Find(node->id)->data_type;
+    } else if(node->node_kind==INT_NODE){
+        node->expr_data_type=INTEGER;
+    } else if(node->node_kind==BOOL_NODE){
+        node->expr_data_type=BOOLEAN;
+    } else if(node->node_kind==REAL_NODE){
+        node->expr_data_type=REAL;
+    }
 
     if(node->node_kind==OPER_NODE)
     {
