@@ -481,7 +481,7 @@ struct TreeNode
 
     NodeKind node_kind;
 
-    union{TokenType oper; int num; char* id; double real; bool boolean;}; // defined for expression/int/identifier only // we changed here
+    union{TokenType oper; double num; char* id;}; // defined for expression/int/identifier only // we changed here
     ExprDataType expr_data_type; // defined for expression/int/identifier only
 
     int line_num;
@@ -535,12 +535,12 @@ TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
     else if(ppi->next_token.type==REALTYPE)
     {
         tree->node_kind=REAL_NODE;
-        tree->real=atof(str);
+        tree->num=atof(str);
     }
     else if(ppi->next_token.type==BOOL)
     {
         tree->node_kind=BOOL_NODE;
-        tree->boolean=Equals(str, "true");
+        tree->num=Equals(str, "true");
     }
     if(ppi->next_token.type==ID)
     {
@@ -849,8 +849,8 @@ void PrintTree(TreeNode* node, int sh=0)
 
     if(node->node_kind==OPER_NODE) printf("[%s]", TokenTypeStr[node->oper]);
     else if(node->node_kind==INT_NODE) printf("[%d]", node->num);
-    else if(node->node_kind==REAL_NODE) printf("[%f]", node->real);
-    else if(node->node_kind==BOOL_NODE) printf("[%s]", node->boolean?"true":"false");
+    else if(node->node_kind==REAL_NODE) printf("[%f]", node->num);
+    else if(node->node_kind==BOOL_NODE) printf("[%s]", (node->num == 1.0)?"true":"false");
     else if(node->node_kind==ID_NODE || node->node_kind==READ_NODE || node->node_kind==ASSIGN_NODE) printf("[%s]", node->id);
 
     if(node->expr_data_type!=VOID) printf("[%s]", ExprDataTypeStr[node->expr_data_type]);
@@ -1049,13 +1049,13 @@ int Power(int a, int b)
     return 0;
 }
 
-int Evaluate(TreeNode* node, SymbolTable* symbol_table, int* variables)
+double Evaluate(TreeNode* node, SymbolTable* symbol_table, double* variables)
 {
-    if(node->node_kind==NUM_NODE) return node->num;
+    if(node->node_kind==INT_NODE || node->node_kind==REAL_NODE || node->node_kind==BOOL_NODE) return node->num;
     if(node->node_kind==ID_NODE) return variables[symbol_table->Find(node->id)->memloc];
 
-    int a=Evaluate(node->child[0], symbol_table, variables);
-    int b=Evaluate(node->child[1], symbol_table, variables);
+    double a=Evaluate(node->child[0], symbol_table, variables);
+    double b=Evaluate(node->child[1], symbol_table, variables);
 
     if(node->oper==EQUAL) return a==b;
     if(node->oper==LESS_THAN) return a<b;
@@ -1063,23 +1063,23 @@ int Evaluate(TreeNode* node, SymbolTable* symbol_table, int* variables)
     if(node->oper==MINUS) return a-b;
     if(node->oper==TIMES) return a*b;
     if(node->oper==DIVIDE) return a/b;
-    if(node->oper==POWER) return Power(a,b);
+    if(node->oper==POWER) return pow(a,b);
     if(node->oper==AND) return (a*a)-(b*b);
     throw 0;
     return 0;
 }
 
-void RunProgram(TreeNode* node, SymbolTable* symbol_table, int* variables)
+void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
 {
     if(node->node_kind==IF_NODE)
     {
-        int cond=Evaluate(node->child[0], symbol_table, variables);
-        if(cond) RunProgram(node->child[1], symbol_table, variables);
+        double cond=Evaluate(node->child[0], symbol_table, variables);
+        if(cond == 1.0) RunProgram(node->child[1], symbol_table, variables);
         else if(node->child[2]) RunProgram(node->child[2], symbol_table, variables);
     }
     if(node->node_kind==ASSIGN_NODE)
     {
-        int v=Evaluate(node->child[0], symbol_table, variables);
+        double v=Evaluate(node->child[0], symbol_table, variables);
         variables[symbol_table->Find(node->id)->memloc]=v;
     }
     if(node->node_kind==READ_NODE)
@@ -1106,7 +1106,7 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, int* variables)
 void RunProgram(TreeNode* syntax_tree, SymbolTable* symbol_table)
 {
     int i;
-    int* variables=new int[symbol_table->num_vars];
+    double* variables=new double[symbol_table->num_vars];
     for(i=0;i<symbol_table->num_vars;i++) variables[i]=0;
     RunProgram(syntax_tree, symbol_table, variables);
     delete[] variables;
