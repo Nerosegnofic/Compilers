@@ -13,6 +13,154 @@
 #include <cmath>
 using namespace std;
 
+/*
+
+ int a;
+real b;
+bool c;
+int x;
+real y;
+bool z;
+int ra;
+real rb;
+int rc;
+bool ta;
+bool tb;
+bool tc;
+
+a := 5;                { a = 5 }
+b := 3.5;              { b = 3.5 }
+c := true;             { c = true }
+
+{1}  x := a + 3;
+     { 5 + 3 = 8 }
+     { x = 8 }
+write x;
+
+{2}  y := b * 2.0;
+     { 3.5 * 2.0 = 7.0 }
+     { y = 7.0 }
+write y;
+
+{3}  z := a < 10;
+     { 5 < 10 = true }
+write z;
+
+{4}  ta := (a = 5);
+     { true }
+write ta;
+
+{5}  tb := (b < 1.0);
+     { false }
+write tb;
+
+{6}  ra := a + a;
+     { 5 + 5 = 10 }
+write ra;
+
+{7}  rb := b + a;
+     { 3.5 + 5 = 8.5 }
+write rb;
+
+{8}  rc := a + (a + 1);
+     { 5 + (5 + 1) = 11}
+write rc;
+
+{9} write a^b;
+
+{10} write b^a;
+
+{11} a := (a ^ 2);
+    { 5^2 = 25 }
+write a;
+
+{12} b := (b ^ 3);
+     { b = 3.5^3 }
+     { b = 42.875}
+write b;
+
+{13} c := (5 < 2);
+     { c = false }
+write c;
+
+{14} if c = false then
+    write 1
+    else
+    write 0
+end;
+
+{15} if a < 10 then
+     write 1
+     else
+     write 0
+     end;
+
+{16} x := 0;
+repeat
+    x := x + 1;
+    write x
+until x = 3;
+
+{17} x := 5;
+tc := false;
+repeat
+    x := x - 1;
+    write x;
+    if x < 0 then
+        tc := true
+    end
+until tc;
+
+{18} if false then
+        if true then
+            write 1
+        else
+            write 2
+        end
+     else
+     if true then
+        write 3
+     else
+        write 4
+     end
+    end;
+
+{19} if true then
+        if true then
+            write 1
+        else
+            write 2
+        end
+     else
+     if true then
+        write 3
+     else
+        write 4
+     end
+    end;
+
+{20} y := a;
+write y;
+
+{21} a := y;
+     write a
+
+{22} { int a } {All variables must be declared at the beginning of the code }
+
+{23} { c := a } { Can't assign integers to booleans }
+
+{24} { c := b } { Can't assign reals to booleans }
+
+{25} { a := c + 1 } { Can't perform arithmetic operations on boolean variables }
+
+{26} { a := c * 1 }  { Can't perform arithmetic operations on boolean variables }
+
+{27} { if a then write 5 end } { If condition must have boolean variables or boolean conditions }
+
+{28} { repeat write 1 until a } { Until condition must have boolean variables or boolean conditions }
+
+*/
+
 // Strings /////////////////////////////////////////////////////////////////////////
 
 bool Equals(const char* a, const char* b)
