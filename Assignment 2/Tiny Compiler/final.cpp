@@ -1033,12 +1033,10 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
         printf("ERROR If test must be BOOLEAN at line %d\n", node->line_num);
         throw 0;
     }
-    if(node->node_kind==REPEAT_NODE)
+    if(node->node_kind==REPEAT_NODE && node->child[1]->expr_data_type!=BOOLEAN)
     {
-        if(node->child[1]->expr_data_type!=BOOLEAN){
-            printf("ERROR Repeat test must be BOOLEAN at line %d\n", node->line_num);
-            throw 0;
-        }
+        printf("ERROR Repeat test must be BOOLEAN at line %d\n", node->line_num);
+        throw 0;
     }
 
     // Assignments: left side is ID node; ensure types match exactly
@@ -1115,7 +1113,7 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
         else
         {
             printf("Enter %s (bool): ", node->id);
-                char input[100];
+            char input[100];
             scanf("%s", input);
             if (Equals(input, "true"))
                 variables[vi->memloc] = 1.0;
@@ -1137,7 +1135,7 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
             printf("Val: %f\n", value);
         }
         else if(expr->expr_data_type==INTEGER)
-        {;
+        {
             printf("Val: %d\n", (int)value);
         }
         else // boolean printing as 0/1
