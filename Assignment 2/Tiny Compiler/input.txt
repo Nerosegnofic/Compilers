@@ -84,5 +84,60 @@ repeat
     write x
 until x = 3;
 
-{18} y := a;
-write y
+{17} x := 5;
+tc := false;
+repeat
+    x := x - 1;
+    write x;
+    if x < 0 then
+        tc := true
+    end
+until tc;
+
+{18} if false then
+        if true then
+            write 1
+        else
+            write 2
+        end
+     else
+     if true then
+        write 3
+     else
+        write 4
+     end
+    end;
+
+{19} if true then
+        if true then
+            write 1
+        else
+            write 2
+        end
+     else
+     if true then
+        write 3
+     else
+        write 4
+     end
+    end;
+
+{20} y := a;
+write y;
+
+{21} a := y;
+     write a;
+
+{22} { int a } {All variables must be declared at the beginning of the code }
+
+{23} { c := a } { Can't assign integers to booleans }
+
+{24} { c := b } { Can't assign reals to booleans }
+
+{25} { a := c + 1 } { Can't perform arithmetic operations on boolean variables }
+
+{26} { a := c * 1 }  { Can't perform arithmetic operations on boolean variables }
+
+{27} { if a then write 5 end } { If condition must have boolean variables or boolean conditions }
+
+{28} { repeat write 1 until a } { Until condition must have boolean variables or boolean conditions }
