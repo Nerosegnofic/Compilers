@@ -14,8 +14,7 @@
 using namespace std;
 
 /*
-
- int a;
+int a;
 real b;
 bool c;
 int x;
@@ -429,8 +428,8 @@ void GetNextToken(CompilerInfo* pci, Token* ptoken)
 
 // Parser //////////////////////////////////////////////////////////////////////////
 
-// program -> stmtseq
-// stmtseq -> stmt { ; stmt }
+// program -> declarations stmtseq
+// declarations -> {(int|bool|real) identifier;}
 // stmt -> ifstmt | repeatstmt | assignstmt | readstmt | writestmt
 // ifstmt -> if exp then stmtseq [ else stmtseq ] end
 // repeatstmt -> repeat stmtseq until expr
@@ -441,7 +440,7 @@ void GetNextToken(CompilerInfo* pci, Token* ptoken)
 // mathexpr -> term { (+|-) term }       left associative
 // term -> factor { (*|/) factor }       left associative
 // factor -> newexpr { ^ newexpr }       right associative
-// newexpr -> ( mathexpr ) | number | identifier
+// newexpr -> ( expr ) | number | number.number | true | false | identifier
 
 enum NodeKind{
                 IF_NODE, REPEAT_NODE, ASSIGN_NODE, READ_NODE, WRITE_NODE,
@@ -497,7 +496,7 @@ void Match(CompilerInfo* pci, ParseInfo* ppi, TokenType expected_token_type)
 
 TreeNode* Expr(CompilerInfo*, ParseInfo*);
 
-// newexpr -> ( mathexpr ) | number | identifier
+// newexpr -> ( expr ) | number | number.number | true | false | identifier
 TreeNode* NewExpr(CompilerInfo* pci, ParseInfo* ppi)
 {
     pci->debug_file.Out("Start NewExpr");
@@ -998,18 +997,26 @@ void Analyze(TreeNode* node, SymbolTable* symbol_table)
     // If operator, determine expression type
     if(node->node_kind==OPER_NODE)
     {
+        ExprDataType leftType = node->child[0]->expr_data_type;
+        ExprDataType rightType = node->child[1]->expr_data_type;
         // comparison operators produce boolean
-        if(node->oper==EQUAL || node->oper==LESS_THAN) node->expr_data_type=BOOLEAN;
+        if(node->oper==EQUAL)
+        {
+            if ((leftType==BOOLEAN && rightType!=BOOLEAN) || (leftType!=BOOLEAN && rightType==BOOLEAN)){
+                printf("ERROR comparing boolean with a number %d\n", node->line_num);
+                throw 0;
+            }
+            node->expr_data_type=BOOLEAN;
+        }
         else
         {
             // arithmetic or AND operator: left and right must be numeric for arithmetic, boolean only for comparisons
-            ExprDataType leftType = node->child[0]->expr_data_type;
-            ExprDataType rightType = node->child[1]->expr_data_type;
             if(leftType==BOOLEAN || rightType==BOOLEAN)
             {
                 printf("ERROR arithmetic operator applied to boolean at line %d\n", node->line_num);
                 throw 0;
             }
+            if (node->oper==LESS_THAN) node->expr_data_type=BOOLEAN;
             else node->expr_data_type = (leftType==REAL || rightType==REAL) ? REAL : INTEGER;
         }
     }
