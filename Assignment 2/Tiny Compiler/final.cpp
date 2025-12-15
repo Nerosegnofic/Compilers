@@ -1101,6 +1101,7 @@ void RunProgram(TreeNode* node, SymbolTable* symbol_table, double* variables)
         VariableInfo* vi = symbol_table->Find(node->id, node->line_num);
         // assignment: evaluate right-hand side as numeric or boolean depending on var type
         variables[vi->memloc] = Evaluate(node->child[0], symbol_table, variables);
+        if(vi->type==INTEGER) variables[vi->memloc] = (int)variables[vi->memloc];
     }
     else if(node->node_kind==READ_NODE)
     {
